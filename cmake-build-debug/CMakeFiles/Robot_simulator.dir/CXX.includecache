@@ -6,11 +6,23 @@
 
 #IncludeRegexTransform: 
 
+/home/jake/Desktop/SLAM-Methods/EKF.h
+iostream
+-
+Eigen/Core
+-
+Eigen/Dense
+-
+
 /home/jake/Desktop/SLAM-Methods/main.cpp
 iostream
 -
 matplotlibcpp.h
 /home/jake/Desktop/SLAM-Methods/matplotlibcpp.h
+robot.h
+/home/jake/Desktop/SLAM-Methods/robot.h
+EKF.h
+/home/jake/Desktop/SLAM-Methods/EKF.h
 
 /home/jake/Desktop/SLAM-Methods/matplotlibcpp.h
 Python.h
@@ -37,6 +49,10 @@ numpy/arrayobject.h
 -
 opencv2/opencv.hpp
 -
+
+/home/jake/Desktop/SLAM-Methods/robot.h
+matplotlibcpp.h
+/home/jake/Desktop/SLAM-Methods/matplotlibcpp.h
 
 /usr/include/python2.7/Python.h
 patchlevel.h

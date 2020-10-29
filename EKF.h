@@ -12,18 +12,15 @@ using namespace std;
 class EKF{
 
 public:
-    EKF(double deltaT): deltaT(deltaT) {
+    EKF(double deltaT, int numLandmarks): deltaT(deltaT), numLandmarks(numLandmarks){
+        P = Eigen::MatrixXd(3 + 2 * numLandmarks, 3 + 2 * numLandmarks); //covariance matrix
+        X = Eigen::VectorXd(3 + 2 * numLandmarks); //state vector, x, y , theta and then x,y for each landmark
 
-        P = Eigen::MatrixXd(5, 5); //covariance matrix
-        X = Eigen::VectorXd(5); //state vector
-
-        R = Eigen::MatrixXd::Identity(5, 5); //process noise
+        R = Eigen::MatrixXd::Identity(3 + 2 * numLandmarks, 3 + 2 * numLandmarks); //process noise
         R *= .1;
 
-        Q = Eigen::MatrixXd::Identity(5, 5); //meas noise
-        Q *= .1;
-
-        numLandmarks = 0; //set the initial number of landmarks to zero
+        //Q = Eigen::MatrixXd::Identity(3 + 2 * numLandmarks, 3 + 2 * numLandmarks); //meas noise
+        //Q *= .1;
 
     }
 
@@ -34,18 +31,22 @@ public:
      */
     void predict(double velocity, double rotaionalVelocity){
 
+        double thetaRadians = X(2) * (M_PI / 180.);
         //update the state vector using the nonlinear transition function
-        X(0) = X(0) + deltaT * velocity * sin(X(2));
-        X(1) = X(1) + deltaT * velocity * cos(X(2));
+        X(0) = X(0) + deltaT * velocity * sin(thetaRadians);
+        X(1) = X(1) + deltaT * velocity * cos(thetaRadians);
         X(2) = X(2) + deltaT * rotaionalVelocity;
 
         //get the jacobian matrix of the transition function G_t
-        Eigen::MatrixXd G_t = Eigen::MatrixXd::Identity(5, 5);
-        G_t(0, 2) = deltaT * velocity * cos(X(2));
-        G_t(1, 2) = -deltaT * velocity * sin( X(2));
+        Eigen::MatrixXd G_t = Eigen::MatrixXd::Identity(3 + 2 * numLandmarks, 3 + 2 * numLandmarks);
+        G_t(0, 2) = deltaT * velocity * cos(thetaRadians);
+        G_t(1, 2) = -deltaT * velocity * sin(thetaRadians);
 
         //propagate the covariance matrix
         P = G_t * P * G_t.transpose() + R;
+
+        xHist.push_back(X(0)); //log
+        yHist.push_back(X(1));
     }
 
     /**
@@ -58,8 +59,12 @@ public:
 
         int i = 0; //dummy i
 
-        double deltaX = ranges.at(i) * cos(bearings.at(i) + X(2)); //the differnce in x and y between the
-        double deltaY = ranges.at(i) * sin(bearings.at(i) + X(2)); //robot and the landmark
+        //loop over all the landmarks to perform kalman update
+        for(int i = 0; i < ranges.size(); i++){
+
+        }
+        double deltaX = ranges.at(i) * cos(deg2rad(bearings.at(i) + X(2))); //the differnce in x and y between the
+        double deltaY = ranges.at(i) * sin(deg2rad(bearings.at(i) + X(2))); //robot and the landmark
         double q = deltaX * deltaX + deltaY * deltaY; // sum square difference, compute here to make things clean
 
         Eigen::MatrixXd H = Eigen::MatrixXd(2, 5); //Calculate the jacobian matrix for this time step
@@ -70,28 +75,34 @@ public:
         z_t << deltaX + X(0), deltaY + X(1);
 
         Eigen::MatrixXd z_t_hat = Eigen::VectorXd(2); //Predicted meas values
-        z_t_hat << X(3), X(4);
 
-        Eigen::MatrixXd Q_meas = Eigen::MatrixXd(2, 2); //Meas noise
-        Q_meas.row(0) << .1, 0;
-        Q_meas.row(1) << 0, .1;
+        if(X(3) == 0){ //if we have never seen this landmark
+            X(3) = deltaX + X(0);
+            X(4) = deltaY + X(1);
+        }else {
+            cout << X << endl;
+            z_t_hat << X(3), X(4);
 
-        Eigen::MatrixXd F = Eigen::MatrixXd(5, 5); //instanciate F
-        F.row(0) << 1, 0, 0, 0, 0;
-        F.row(1) << 0, 1, 0, 0, 0;
-        F.row(2) << 0, 0, 1, 0, 0;
-        F.row(3) << 0, 0, 0, 1, 0;
-        F.row(4) << 0, 0, 0, 0, 1;
+            Eigen::MatrixXd Q_meas = Eigen::MatrixXd(2, 2); //Meas noise
+            Q_meas.row(0) << .1, 0;
+            Q_meas.row(1) << 0, .1;
 
-        Eigen::MatrixXd H_t = H * F; //map the jacobian into the high dim state
-        Eigen::MatrixXd H_t_transpose = H_t.transpose();
+            Eigen::MatrixXd F = Eigen::MatrixXd(5, 5); //instanciate F
+            F.row(0) << 1, 0, 0, 0, 0;
+            F.row(1) << 0, 1, 0, 0, 0;
+            F.row(2) << 0, 0, 1, 0, 0;
+            F.row(3) << 0, 0, 0, 1, 0;
+            F.row(4) << 0, 0, 0, 0, 1;
 
-        Eigen::MatrixXd K; // compute the kalman gain
-        K = H_t * P * H_t.transpose() + Q_meas;
-        K = K.inverse();
-        K = P * H_t_transpose * K;
+            Eigen::MatrixXd H_t = H * F; //map the jacobian into the high dim state
+            Eigen::MatrixXd H_t_transpose = H_t.transpose();
 
-        X = K * (z_t - z_t_hat); //update the state vector
+            Eigen::MatrixXd K; // compute the kalman gain
+            K = H_t * P * H_t.transpose() + Q_meas;
+            K = K.inverse();
+            K = P * H_t_transpose * K;
+            X = X + K * (z_t - z_t_hat); //update the state vector
+        }
     }
 
     /**
@@ -103,6 +114,18 @@ public:
 
     }
 
+    void plot(){
+        plt::plot(xHist,yHist);
+        plt::scatter(xHist,yHist,20, {{"marker", "o"}, {"color", "black"}});
+        plt::xlim(- 10, 10);
+        plt::ylim(-10 , 10);
+        plt::show();
+    }
+
+    static double deg2rad(double val){
+        return val * (M_PI / 180.);
+    }
+
 private:
 
     Eigen::MatrixXd P; //covariance matrix P
@@ -110,6 +133,9 @@ private:
     Eigen::MatrixXd R; //process noise
     Eigen::MatrixXd Q; //meas noise
     const double deltaT; //timestep size
-    int numLandmarks; //number of landmarks in the system
+    const int numLandmarks; //number of landmarks in the system
+
+    vector<double> xHist = vector< double> ();
+    vector<double> yHist = vector< double> ();
 
 };

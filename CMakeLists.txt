@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD 14)
 add_executable(Robot_simulator
         main.cpp
         matplotlibcpp.h
-        robot.h)
+        robot.h EKF.h)
 
 find_package(Python2 COMPONENTS Development NumPy matplotlib)
 target_include_directories(Robot_simulator PRIVATE ${Python2_INCLUDE_DIRS} ${Python2_NumPy_INCLUDE_DIRS} )

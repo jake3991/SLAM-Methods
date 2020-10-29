@@ -98,6 +98,9 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="/home/jake/Desktop/SLAM-Methods/EKF.h">
+			<Option target="Robot_simulator"/>
+		</Unit>
 		<Unit filename="/home/jake/Desktop/SLAM-Methods/main.cpp">
 			<Option target="Robot_simulator"/>
 		</Unit>

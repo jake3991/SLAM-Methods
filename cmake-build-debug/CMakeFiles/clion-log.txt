@@ -1,4 +1,4 @@
-/snap/clion/126/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/jake/Desktop/SLAM-Methods
+/snap/clion/129/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/jake/Desktop/SLAM-Methods
 -- Could NOT find Python2 (missing: matplotlib) (found version "2.7.17")
 -- Configuring done
 -- Generating done

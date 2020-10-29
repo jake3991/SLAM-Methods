@@ -34,6 +34,8 @@ public:
             xLandmark.push_back((rand() % sizeX) - (sizeX / 2.));
             yLandmark.push_back((rand() % sizeY ) - (sizeY / 2.));
         }
+
+        cout << xLandmark[0] << ":" << yLandmark[0] << endl;
     }
 
     /**
@@ -45,8 +47,8 @@ public:
     void move(double linearVelocity, double rotationalVelocity, double deltaT){
 
         double thetaRadians = theta * (M_PI / 180.); //get theta in radians for sin and cos
-        x = x + linearVelocity * sin(thetaRadians); // update x
-        y = y + linearVelocity * cos(thetaRadians); //update y
+        x = x + linearVelocity * deltaT * sin(thetaRadians); // update x
+        y = y + linearVelocity * deltaT * cos(thetaRadians); //update y
         theta = theta + rotationalVelocity * deltaT; // update theta
 
         xHistory.push_back(x); //log the pose
@@ -83,6 +85,7 @@ public:
         plt::xlim(- sizeX / 2, sizeX / 2);
         plt::ylim(- sizeY / 2, sizeY / 2);
         plt::show();
+
     }
 
 private:

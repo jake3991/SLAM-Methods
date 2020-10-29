@@ -57,51 +57,56 @@ public:
      */
     void landmarkUpdate(const vector<double> &ranges, const vector<double> &bearings){
 
-        int i = 0; //dummy i
-
-        //loop over all the landmarks to perform kalman update
         for(int i = 0; i < ranges.size(); i++){
 
-        }
-        double deltaX = ranges.at(i) * cos(deg2rad(bearings.at(i) + X(2))); //the differnce in x and y between the
-        double deltaY = ranges.at(i) * sin(deg2rad(bearings.at(i) + X(2))); //robot and the landmark
-        double q = deltaX * deltaX + deltaY * deltaY; // sum square difference, compute here to make things clean
+            double deltaX = ranges.at(i) * cos(deg2rad(bearings.at(i) + X(2))); //the differnce in x and y between the
+            double deltaY = ranges.at(i) * sin(deg2rad(bearings.at(i) + X(2))); //robot and the landmark
+            double q = deltaX * deltaX + deltaY * deltaY; // sum square difference, compute here to make things clean
 
-        Eigen::MatrixXd H = Eigen::MatrixXd(2, 5); //Calculate the jacobian matrix for this time step
-        H.row(0) << -1/sqrt(q) * deltaX, -1/sqrt(q) * deltaX, 0, 1/sqrt(q) * deltaX, 1/sqrt(q) * deltaY;
-        H.row(1) << deltaY, -deltaX, 1, -deltaY, deltaX;
+            if(X(2 * i + 3) == 0){ //if we have never seen this landmark
+                X(2* i + 3) = deltaX + X(0);
+                X(2 * i + 4) = deltaY + X(1);
 
-        Eigen::MatrixXd z_t = Eigen::VectorXd(2); //Meas vector
-        z_t << deltaX + X(0), deltaY + X(1);
+            }else { //perform a kalman update for the ith landmark
 
-        Eigen::MatrixXd z_t_hat = Eigen::VectorXd(2); //Predicted meas values
+                Eigen::MatrixXd H = Eigen::MatrixXd(2, 3 + 2 *numLandmarks); //Calculate the jacobian matrix for this time step
+                Eigen::MatrixXd H_state_vector = Eigen::MatrixXd::Zero(2,3); //get the jacobian of just the state vector
+                H_state_vector.row(0) << -1 / sqrt(q) * deltaX, -1 / sqrt(q) *deltaX, 0; //push this into the larger jacobian
+                H_state_vector.row(1) << deltaY, -deltaX, 1;
+                H.block<2, 3>(0, 0) = H_state_vector;
 
-        if(X(3) == 0){ //if we have never seen this landmark
-            X(3) = deltaX + X(0);
-            X(4) = deltaY + X(1);
-        }else {
-            cout << X << endl;
-            z_t_hat << X(3), X(4);
+                H(0, 2 * i + 3) = 1 / sqrt(q) * deltaX; //populate the jacobian matrix with the ith landmark
+                H(0, 2 * i + 4) = 1 / sqrt(q) * deltaY;
+                H(1, 2 * i + 3) = -deltaY;
+                H(1, 2 * i + 4) = deltaX;
 
-            Eigen::MatrixXd Q_meas = Eigen::MatrixXd(2, 2); //Meas noise
-            Q_meas.row(0) << .1, 0;
-            Q_meas.row(1) << 0, .1;
+                Eigen::MatrixXd z_t = Eigen::VectorXd(2); //Meas vector
+                z_t << deltaX + X(0), deltaY + X(1); //parse the meas vector
 
-            Eigen::MatrixXd F = Eigen::MatrixXd(5, 5); //instanciate F
-            F.row(0) << 1, 0, 0, 0, 0;
-            F.row(1) << 0, 1, 0, 0, 0;
-            F.row(2) << 0, 0, 1, 0, 0;
-            F.row(3) << 0, 0, 0, 1, 0;
-            F.row(4) << 0, 0, 0, 0, 1;
+                Eigen::MatrixXd z_t_hat = Eigen::VectorXd(2); //Predicted meas values
+                z_t_hat << X(2 * i + 3), X(2 * i + 4); //parse the predicted location of the landmark
 
-            Eigen::MatrixXd H_t = H * F; //map the jacobian into the high dim state
-            Eigen::MatrixXd H_t_transpose = H_t.transpose();
+                Eigen::MatrixXd Q_meas = Eigen::MatrixXd(2, 2); //Meas noise
+                Q_meas.row(0) << .1, 0;
+                Q_meas.row(1) << 0, .1;
 
-            Eigen::MatrixXd K; // compute the kalman gain
-            K = H_t * P * H_t.transpose() + Q_meas;
-            K = K.inverse();
-            K = P * H_t_transpose * K;
-            X = X + K * (z_t - z_t_hat); //update the state vector
+                Eigen::MatrixXd F = 0. * Eigen::MatrixXd(3 + 2 * numLandmarks, 3 + 2 * numLandmarks);//instanciate F
+                F(0, 0) = 1.;
+                F(1, 1) = 1.;
+                F(2, 2) = 1.;
+                F(2 * i + 3, 2 * i + 3) = 1.;
+                F(2 * i + 4, 2 * i + 4) = 1.;
+
+                Eigen::MatrixXd H_t = H * F; //map the jacobian into the high dim state
+                Eigen::MatrixXd H_t_transpose = H_t.transpose(); //compute this here, this way it's done once
+
+                Eigen::MatrixXd K; // compute the kalman gain
+                K = H_t * P * H_t_transpose + Q_meas;
+                K = K.inverse();
+                K = P * H_t_transpose * K;
+
+                X = X + K * (z_t - z_t_hat); //update the state vector using kalman gain
+            }
         }
     }
 
